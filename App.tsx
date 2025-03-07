@@ -19,16 +19,18 @@ const {width, height} = Dimensions.get('window');
 export default function App() {
   const [score, setScore] = useState(0);
   const [color, setColor] = useState('red');
-  const [timer, setTimer] = useState(30); // Timer state
-  const [gameOver, setGameOver] = useState(false); // Game status state
+  const [timer, setTimer] = useState(5); // Timer state
+  const [gameOver, setGameOver] = useState(false);
+  const [moved, setMoved] = useState(false); //] Game status state
 
   const pan = useRef(new Animated.ValueXY({x: 0, y: 0})).current;
+  const playerPan = useRef(new Animated.ValueXY({x: 200, y: 550})).current;
 
   // Create a new colored square at a random position along the edge
   const spawnNewSquare = () => {
     const side = Math.floor(Math.random() * 4);
     let startX = 0,
-      startY = 0;
+      startY = 860;
 
     switch (side) {
       case 0: // top
@@ -59,39 +61,41 @@ export default function App() {
   };
 
   // Initialize the first square
+  // Initialize the first square
   useEffect(() => {
     spawnNewSquare();
   }, []);
 
   // Timer effect
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer(prevTimer => {
-        if (prevTimer > 0) {
-          return prevTimer - 1;
-        } else {
-          clearInterval(interval);
-          setGameOver(true);
-          resetGame();
+    if (timer === 0) {
+      resetGame(); // Reset the game state when timer hits 0
+    } else {
+      const interval = setInterval(() => {
+        setTimer(prevTimer => {
+          if (prevTimer > 0) {
+            console.log(prevTimer - 1);
+            return prevTimer - 1;
+          } else {
+            clearInterval(interval);
+            return 0;
+          }
+        });
+      }, 1000);
 
-          // Set game over when timer hits 0
-          return 0;
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [setGameOver]);
-
-  // Show alert and reset game when game is over
+      return () => clearInterval(interval);
+    }
+  }, [timer]);
 
   // Function to reset the game state
   const resetGame = () => {
     setScore(0);
     setTimer(30);
-    setGameOver(false);
-    spawnNewSquare();
   };
+
+  // Show alert and reset game when game is over
+
+  // Function to reset the game state
 
   // Check if the colored square is over the target
   const isOverTarget = () => {
@@ -107,6 +111,21 @@ export default function App() {
       squareX + SQUARE_SIZE > targetX &&
       squareY < targetY + TARGET_SIZE &&
       squareY + SQUARE_SIZE > targetY
+    );
+  };
+
+  let playerX = 0;
+  let playerY = 0;
+  const isOverPlayer = () => {
+    // We can read the actual numeric values from the animated object.
+    const squareX = pan.x.__getValue();
+    const squareY = pan.y.__getValue();
+
+    return (
+      squareX < playerX + SQUARE_SIZE &&
+      squareX + SQUARE_SIZE > playerX &&
+      squareY < playerY + SQUARE_SIZE &&
+      squareY + SQUARE_SIZE > playerY
     );
   };
 
@@ -128,12 +147,43 @@ export default function App() {
         pan.flattenOffset();
         if (isOverTarget()) {
           setScore(prev => prev + 1);
-          spawnNewSquare();
+          // spawnNewSquare();
+          Animated.spring(pan, {toValue: {x: 0, y: 860}, useNativeDriver: false}).start();
+        } else if (isOverPlayer()) {
+          setScore(prev => prev - 1);
+          // spawnNewSquare();
+          Animated.spring(pan, {toValue: {x: 0, y: 860}, useNativeDriver: false}).start();
         }
-        Animated.spring(pan, {toValue: {x: 0, y: 0}, useNativeDriver: false}).start();
       },
     }),
   ).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(playerPan, {
+          toValue: {x: 50, y: 100},
+          duration: 1750,
+          useNativeDriver: false,
+        }),
+        Animated.timing(playerPan, {
+          toValue: {x: 300, y: 100},
+          duration: 1750,
+          useNativeDriver: false,
+        }),
+        Animated.timing(playerPan, {
+          toValue: {x: 300, y: 500},
+          duration: 1750,
+          useNativeDriver: false,
+        }),
+        Animated.timing(playerPan, {
+          toValue: {x: 50, y: 100},
+          duration: 1750,
+          useNativeDriver: false,
+        }),
+      ]),
+    ).start();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -153,10 +203,17 @@ export default function App() {
             ]}
             {...panResponder.panHandlers}
           >
-            <Image
-              source={require('./assets/basketball-ball.png')} // Replace with your image path
-              style={styles.draggableImage}
-            />
+            <Image source={require('./assets/basketball-ball.png')} style={styles.draggableImage} />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.player,
+              {
+                transform: [{translateX: playerPan.x}, {translateY: playerPan.y}],
+              },
+            ]}
+          >
+            <Image source={require('./assets/basketball-player.png')} style={styles.playerImage} />
           </Animated.View>
           <Text style={styles.instructions}>Drag the ball to the basket</Text>
         </View>
@@ -228,5 +285,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  player: {
+    position: 'absolute',
+    width: SQUARE_SIZE,
+    height: SQUARE_SIZE,
+  },
+  playerImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: SQUARE_SIZE / 2,
   },
 });
