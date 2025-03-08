@@ -87,19 +87,12 @@ export default function App() {
     }
   }, [timer]);
 
-  // Function to reset the game state
   const resetGame = () => {
     setScore(0);
     setTimer(30);
   };
 
-  // Show alert and reset game when game is over
-
-  // Function to reset the game state
-
-  // Check if the colored square is over the target
   const isOverTarget = () => {
-    // We can read the actual numeric values from the animated object.
     const squareX = pan.x.__getValue();
     const squareY = pan.y.__getValue();
 
@@ -113,14 +106,11 @@ export default function App() {
       squareY + SQUARE_SIZE > targetY
     );
   };
-
-  let playerX = 0;
-  let playerY = 0;
   const isOverPlayer = () => {
-    // We can read the actual numeric values from the animated object.
     const squareX = pan.x.__getValue();
     const squareY = pan.y.__getValue();
-
+    let playerX = playerPan.x.__getValue();
+    let playerY = playerPan.y.__getValue();
     return (
       squareX < playerX + SQUARE_SIZE &&
       squareX + SQUARE_SIZE > playerX &&
@@ -134,24 +124,26 @@ export default function App() {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        // Capture any existing offset so the square keeps its place after drags
         pan.setOffset({
           x: pan.x.__getValue(),
           y: pan.y.__getValue(),
         });
-        // Reset the delta to zero
         pan.setValue({x: 0, y: 0});
       },
-      onPanResponderMove: Animated.event([null, {dx: pan.x, dy: pan.y}], {useNativeDriver: false}),
+      onPanResponderMove: (e, gestureState) => {
+        pan.x.setValue(gestureState.dx);
+        pan.y.setValue(gestureState.dy);
+        if (isOverPlayer()) {
+          setScore(prev => prev - 1);
+        }
+      },
       onPanResponderRelease: () => {
         pan.flattenOffset();
         if (isOverTarget()) {
           setScore(prev => prev + 1);
-          // spawnNewSquare();
           Animated.spring(pan, {toValue: {x: 0, y: 860}, useNativeDriver: false}).start();
         } else if (isOverPlayer()) {
           setScore(prev => prev - 1);
-          // spawnNewSquare();
           Animated.spring(pan, {toValue: {x: 0, y: 860}, useNativeDriver: false}).start();
         }
       },
